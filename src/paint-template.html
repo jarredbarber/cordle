@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cordle Paint — match the color</title>
+<style>
+/*PAINT-STYLE*/
+</style>
+</head>
+<body>
+<header>
+  <h1>CORDLE PAINT</h1>
+  <p class="tag">Mix paint on the canvas to match the target under the spot.</p>
+  <p class="nav"><a href="index.html">← Subset game</a></p>
+</header>
+<main>
+  <section class="targets">
+    <div class="swatch-big" id="target"><span>Target</span></div>
+    <div class="swatch-big" id="spot-readout"><span>Under spot</span></div>
+  </section>
+  <div class="canvas-wrap">
+    <canvas id="paint-canvas" width="420" height="420"></canvas>
+    <div id="spot"></div>
+  </div>
+  <section class="palette" id="palette"></section>
+  <div class="sliders">
+    <label>Brush size <input type="range" id="size" min="4" max="40" value="16" /></label>
+    <label>Flow <input type="range" id="flow" min="5" max="100" value="40" /></label>
+  </div>
+  <div class="controls">
+    <button id="lock">Lock in</button>
+    <button id="clear">Clear canvas</button>
+    <button id="new">New target</button>
+  </div>
+  <div id="result"></div>
+  <div id="best"></div>
+</main>
+<footer>
+  Pigment mixing by
+  <a href="https://github.com/scrtwpns/mixbox" target="_blank" rel="noopener">Mixbox</a>
+  © Secret Weapons — CC BY-NC 4.0. A non-commercial fan project.
+</footer>
+<script>
+//MIXBOX
+</script>
+<script>
+//ENGINE
+</script>
+<script>
+//PAINT-ENGINE
+</script>
+<script>
+//PAINT-UI
+</script>
+</body>
+</html>
