@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Cordle — color mixing puzzle</title>
+<style>
+/*STYLE*/
+</style>
+</head>
+<body>
+<header>
+  <h1>CORDLE</h1>
+  <p class="tag">Pick the pigments that mix to the target color.</p>
+</header>
+<main>
+  <section class="targets">
+    <div class="swatch-big" id="target"><span>Target</span></div>
+    <div class="swatch-big" id="preview"><span>Your mix</span></div>
+  </section>
+  <p id="hint"></p>
+  <p id="match-live">&nbsp;</p>
+  <section id="palette" class="palette"></section>
+  <div class="controls">
+    <button id="submit">Submit guess</button>
+    <button id="clear">Clear</button>
+    <span id="guesses-left"></span>
+  </div>
+  <section id="history" class="history"></section>
+  <div id="message"></div>
+  <div class="endbar">
+    <button id="new">New puzzle</button>
+    <button id="stats-btn">Stats</button>
+  </div>
+</main>
+<footer>
+  Pigment mixing by
+  <a href="https://github.com/scrtwpns/mixbox" target="_blank" rel="noopener">Mixbox</a>
+  © Secret Weapons — CC BY-NC 4.0. A non-commercial fan project.
+</footer>
+<dialog id="stats-dialog">
+  <h2>Stats</h2>
+  <div class="stats-grid">
+    <div><b id="st-played">0</b>Played</div>
+    <div><b id="st-winpct">0</b>Win %</div>
+    <div><b id="st-streak">0</b>Streak</div>
+    <div><b id="st-best">0</b>Best</div>
+  </div>
+  <form method="dialog"><button>Close</button></form>
+</dialog>
+<script>
+//MIXBOX
+</script>
+<script>
+//ENGINE
+</script>
+<script>
+//UI
+</script>
+</body>
+</html>
