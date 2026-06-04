@@ -1,0 +1,10 @@
+{
+  "name": "cordle",
+  "version": "1.0.0",
+  "description": "A color-mixing Wordle powered by Mixbox pigment mixing",
+  "scripts": {
+    "test": "node --test",
+    "build": "node build.js"
+  },
+  "license": "MIT"
+}
