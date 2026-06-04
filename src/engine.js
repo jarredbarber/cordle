@@ -81,5 +81,22 @@
     return { palette, answerIndices, target };
   }
 
-  return { mixSubset, rgbToLab, deltaE, matchPercent, PIGMENTS, generatePuzzle };
+  function setsEqual(a, b) {
+    if (a.length !== b.length) return false;
+    const s = new Set(a);
+    return b.every((x) => s.has(x));
+  }
+
+  function evaluateGuess(selectedIndices, answerIndices, palette, target) {
+    const perSwatch = selectedIndices.map((i) => ({
+      index: i,
+      inAnswer: answerIndices.includes(i),
+    }));
+    const mixedRgb = mixSubset(selectedIndices.map((i) => palette[i].rgb));
+    const match = mixedRgb ? matchPercent(mixedRgb, target) : 0;
+    const win = setsEqual(selectedIndices, answerIndices);
+    return { perSwatch, mixedRgb, match, win };
+  }
+
+  return { mixSubset, rgbToLab, deltaE, matchPercent, PIGMENTS, generatePuzzle, evaluateGuess };
 }));

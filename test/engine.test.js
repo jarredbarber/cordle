@@ -67,3 +67,41 @@ test('generatePuzzle: target equals the mix of the answer pigments', () => {
   const expected = E.mixSubset(p.answerIndices.map((i) => p.palette[i].rgb));
   assert.deepStrictEqual(p.target, expected);
 });
+
+const PAL = [
+  { name: 'a', rgb: [252, 211, 0] },
+  { name: 'b', rgb: [0, 33, 133] },
+  { name: 'c', rgb: [255, 39, 2] },
+];
+
+test('evaluateGuess: exact set match wins with 100% match', () => {
+  const ans = [0, 1];
+  const target = E.mixSubset([PAL[0].rgb, PAL[1].rgb]);
+  const r = E.evaluateGuess([0, 1], ans, PAL, target);
+  assert.strictEqual(r.win, true);
+  assert.strictEqual(r.match, 100);
+});
+
+test('evaluateGuess: win is order-independent', () => {
+  const ans = [0, 1];
+  const target = E.mixSubset([PAL[0].rgb, PAL[1].rgb]);
+  assert.strictEqual(E.evaluateGuess([1, 0], ans, PAL, target).win, true);
+});
+
+test('evaluateGuess: wrong set does not win and reports per-swatch membership', () => {
+  const ans = [0, 1];
+  const target = E.mixSubset([PAL[0].rgb, PAL[1].rgb]);
+  const r = E.evaluateGuess([0, 2], ans, PAL, target);
+  assert.strictEqual(r.win, false);
+  assert.deepStrictEqual(r.perSwatch, [
+    { index: 0, inAnswer: true },
+    { index: 2, inAnswer: false },
+  ]);
+  assert.ok(Array.isArray(r.mixedRgb) && r.mixedRgb.length === 3);
+});
+
+test('evaluateGuess: superset of the answer does not win', () => {
+  const ans = [0, 1];
+  const target = E.mixSubset([PAL[0].rgb, PAL[1].rgb]);
+  assert.strictEqual(E.evaluateGuess([0, 1, 2], ans, PAL, target).win, false);
+});
