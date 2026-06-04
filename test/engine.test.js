@@ -34,3 +34,36 @@ test('matchPercent: close colors score higher than far colors', () => {
 test('rgbToLab + deltaE: identical colors have zero distance', () => {
   assert.strictEqual(E.deltaE(E.rgbToLab([50, 80, 120]), E.rgbToLab([50, 80, 120])), 0);
 });
+
+function seededRng(seed) {
+  let s = seed >>> 0;
+  return () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+}
+
+test('PIGMENTS pool has at least 10 distinct named pigments', () => {
+  assert.ok(E.PIGMENTS.length >= 10);
+  assert.strictEqual(new Set(E.PIGMENTS.map((p) => p.name)).size, E.PIGMENTS.length);
+  for (const p of E.PIGMENTS) {
+    assert.ok(typeof p.name === 'string' && p.name.length > 0);
+    assert.ok(Array.isArray(p.rgb) && p.rgb.length === 3);
+  }
+});
+
+test('generatePuzzle: palette of 8 distinct pigments', () => {
+  const p = E.generatePuzzle(E.PIGMENTS, seededRng(42));
+  assert.strictEqual(p.palette.length, 8);
+  assert.strictEqual(new Set(p.palette.map((x) => x.name)).size, 8);
+});
+
+test('generatePuzzle: answer is 2-4 indices within the palette', () => {
+  const p = E.generatePuzzle(E.PIGMENTS, seededRng(7));
+  assert.ok(p.answerIndices.length >= 2 && p.answerIndices.length <= 4);
+  assert.ok(p.answerIndices.every((i) => i >= 0 && i < 8));
+  assert.strictEqual(new Set(p.answerIndices).size, p.answerIndices.length);
+});
+
+test('generatePuzzle: target equals the mix of the answer pigments', () => {
+  const p = E.generatePuzzle(E.PIGMENTS, seededRng(99));
+  const expected = E.mixSubset(p.answerIndices.map((i) => p.palette[i].rgb));
+  assert.deepStrictEqual(p.target, expected);
+});

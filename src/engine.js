@@ -46,5 +46,40 @@
     return Math.max(0, Math.min(100, Math.round(100 * (1 - d / DE_MAX))));
   }
 
-  return { mixSubset, rgbToLab, deltaE, matchPercent };
+  const PIGMENTS = [
+    { name: 'Cadmium Yellow', rgb: [254, 236, 0] },
+    { name: 'Hansa Yellow', rgb: [252, 211, 0] },
+    { name: 'Cadmium Orange', rgb: [255, 105, 0] },
+    { name: 'Cadmium Red', rgb: [255, 39, 2] },
+    { name: 'Quinacridone Magenta', rgb: [128, 2, 46] },
+    { name: 'Cobalt Blue', rgb: [0, 33, 133] },
+    { name: 'Ultramarine Blue', rgb: [25, 0, 89] },
+    { name: 'Phthalo Blue', rgb: [13, 27, 68] },
+    { name: 'Phthalo Green', rgb: [0, 60, 50] },
+    { name: 'Permanent Green', rgb: [7, 109, 22] },
+    { name: 'Sap Green', rgb: [107, 148, 4] },
+    { name: 'Burnt Sienna', rgb: [123, 72, 0] },
+    { name: 'Titanium White', rgb: [243, 243, 243] },
+    { name: 'Ivory Black', rgb: [0, 0, 0] },
+  ];
+
+  function sampleIndices(length, k, rng) {
+    const idx = Array.from({ length }, (_, i) => i);
+    for (let i = idx.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [idx[i], idx[j]] = [idx[j], idx[i]];
+    }
+    return idx.slice(0, k);
+  }
+
+  function generatePuzzle(pool, rng) {
+    rng = rng || Math.random;
+    const palette = sampleIndices(pool.length, 8, rng).map((i) => pool[i]);
+    const answerSize = 2 + Math.floor(rng() * 3); // 2, 3, or 4
+    const answerIndices = sampleIndices(8, answerSize, rng).sort((a, b) => a - b);
+    const target = mixSubset(answerIndices.map((i) => palette[i].rgb));
+    return { palette, answerIndices, target };
+  }
+
+  return { mixSubset, rgbToLab, deltaE, matchPercent, PIGMENTS, generatePuzzle };
 }));
