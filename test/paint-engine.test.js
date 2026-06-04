@@ -10,6 +10,13 @@ function latentOf(rgb) {
   return P.pigmentLatents([{ name: 'x', rgb }])[0];
 }
 
+test('addDab: zero radius deposits nothing and never produces NaN', () => {
+  const buf = P.createBuffer(11, 11);
+  P.addDab(buf, 5, 5, 0, 1.0, latentOf(YELLOW));
+  assert.strictEqual(buf.weight[5 * 11 + 5], 0);
+  assert.deepStrictEqual(P.colorAt(buf, 5, 5), [255, 255, 255]);
+});
+
 test('createBuffer: correct dimensions and zeroed', () => {
   const buf = P.createBuffer(4, 3);
   assert.strictEqual(buf.w, 4);

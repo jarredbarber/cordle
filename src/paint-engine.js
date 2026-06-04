@@ -8,6 +8,17 @@
   'use strict';
 
   const L = mixbox.LATENT_SIZE; // 7
+  const MIN_CONTRIBUTOR_WEIGHT = 0.15; // a target must blend >=2 pigments above this
+
+  // Pixel bounding box of a disk, clamped to the buffer.
+  function clipBounds(w, h, cx, cy, radius) {
+    return {
+      x0: Math.max(0, Math.floor(cx - radius)),
+      x1: Math.min(w - 1, Math.ceil(cx + radius)),
+      y0: Math.max(0, Math.floor(cy - radius)),
+      y1: Math.min(h - 1, Math.ceil(cy + radius)),
+    };
+  }
 
   const PAINT_PALETTE = [
     { name: 'Cadmium Yellow', rgb: [254, 236, 0] },
@@ -34,11 +45,9 @@
   }
 
   function addDab(buf, cx, cy, radius, flow, pigmentLatent) {
+    if (radius <= 0) return; // a zero/negative brush deposits nothing (avoids NaN)
     const { w, h, accum, weight } = buf;
-    const x0 = Math.max(0, Math.floor(cx - radius));
-    const x1 = Math.min(w - 1, Math.ceil(cx + radius));
-    const y0 = Math.max(0, Math.floor(cy - radius));
-    const y1 = Math.min(h - 1, Math.ceil(cy + radius));
+    const { x0, x1, y0, y1 } = clipBounds(w, h, cx, cy, radius);
     for (let y = y0; y <= y1; y++) {
       for (let x = x0; x <= x1; x++) {
         const dx = x - cx, dy = y - cy;
@@ -72,10 +81,7 @@
     const { w, h, accum, weight } = buf;
     const z = new Array(L).fill(0);
     let wsum = 0;
-    const x0 = Math.max(0, Math.floor(cx - sampleRadius));
-    const x1 = Math.min(w - 1, Math.ceil(cx + sampleRadius));
-    const y0 = Math.max(0, Math.floor(cy - sampleRadius));
-    const y1 = Math.min(h - 1, Math.ceil(cy + sampleRadius));
+    const { x0, x1, y0, y1 } = clipBounds(w, h, cx, cy, sampleRadius);
     for (let y = y0; y <= y1; y++) {
       for (let x = x0; x <= x1; x++) {
         const dx = x - cx, dy = y - cy;
@@ -95,13 +101,16 @@
   function generateTarget(palette, rng) {
     rng = rng || Math.random;
     const latents = pigmentLatents(palette);
-    let weights;
+    let weights = palette.map(() => 1 / palette.length); // uniform fallback (always valid)
     for (let attempt = 0; attempt < 100; attempt++) {
       const raw = palette.map(() => { const r = rng(); return r * r; });
       const sum = raw.reduce((a, b) => a + b, 0);
       if (sum <= 0) continue;
-      weights = raw.map((x) => x / sum);
-      if (weights.filter((x) => x >= 0.15).length >= 2) break;
+      const candidate = raw.map((x) => x / sum);
+      if (candidate.filter((x) => x >= MIN_CONTRIBUTOR_WEIGHT).length >= 2) {
+        weights = candidate;
+        break;
+      }
     }
     const z = new Array(L).fill(0);
     for (let k = 0; k < palette.length; k++)
