@@ -92,6 +92,24 @@
     return [o[0], o[1], o[2]];
   }
 
+  function generateTarget(palette, rng) {
+    rng = rng || Math.random;
+    const latents = pigmentLatents(palette);
+    let weights;
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const raw = palette.map(() => { const r = rng(); return r * r; });
+      const sum = raw.reduce((a, b) => a + b, 0);
+      if (sum <= 0) continue;
+      weights = raw.map((x) => x / sum);
+      if (weights.filter((x) => x >= 0.15).length >= 2) break;
+    }
+    const z = new Array(L).fill(0);
+    for (let k = 0; k < palette.length; k++)
+      for (let i = 0; i < L; i++) z[i] += weights[k] * latents[k][i];
+    const o = mixbox.latentToRgb(z);
+    return { weights, rgb: [o[0], o[1], o[2]] };
+  }
+
   return {
     LATENT_SIZE: L,
     PAINT_PALETTE,
@@ -101,5 +119,6 @@
     addDab,
     colorAt,
     sampleSpot,
+    generateTarget,
   };
 }));

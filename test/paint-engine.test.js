@@ -60,3 +60,29 @@ test('sampleSpot: averages a single-pigment region to that pigment; white if unp
   P.addDab(buf, 20, 20, 10, 0.8, latentOf(YELLOW));
   assert.ok(close(P.sampleSpot(buf, 20, 20, 6), YELLOW), `got ${P.sampleSpot(buf, 20, 20, 6)}`);
 });
+
+function seededRng(seed) {
+  let s = seed >>> 0;
+  return () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+}
+
+test('generateTarget: normalized weights, >=2 contributors, valid rgb', () => {
+  const t = P.generateTarget(P.PAINT_PALETTE, seededRng(3));
+  assert.strictEqual(t.weights.length, P.PAINT_PALETTE.length);
+  const sum = t.weights.reduce((a, b) => a + b, 0);
+  assert.ok(Math.abs(sum - 1) < 1e-6, `weights sum ${sum}`);
+  assert.ok(t.weights.filter((x) => x >= 0.15).length >= 2, 'needs >=2 real contributors');
+  assert.ok(Array.isArray(t.rgb) && t.rgb.length === 3);
+  assert.ok(t.rgb.every((v) => v >= 0 && v <= 255));
+});
+
+test('generateTarget: reachable — painting the target weights at a spot matches rgb', () => {
+  const t = P.generateTarget(P.PAINT_PALETTE, seededRng(11));
+  const latents = P.pigmentLatents(P.PAINT_PALETTE);
+  const buf = P.createBuffer(11, 11);
+  t.weights.forEach((wgt, k) => {
+    if (wgt > 0) P.addDab(buf, 5, 5, 1, wgt, latents[k]);
+  });
+  const c = P.colorAt(buf, 5, 5);
+  assert.ok(c.every((v, i) => Math.abs(v - t.rgb[i]) <= 2), `reachable mismatch ${c} vs ${t.rgb}`);
+});
