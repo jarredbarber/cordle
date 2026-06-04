@@ -41,6 +41,7 @@
   }
 
   const DE_MAX = 100;
+  // Returns an integer 0-100 (100 = identical color).
   function matchPercent(rgb1, rgb2) {
     const d = deltaE(rgbToLab(rgb1), rgbToLab(rgb2));
     return Math.max(0, Math.min(100, Math.round(100 * (1 - d / DE_MAX))));
@@ -72,11 +73,12 @@
     return idx.slice(0, k);
   }
 
+  const PALETTE_SIZE = 8;
   function generatePuzzle(pool, rng) {
     rng = rng || Math.random;
-    const palette = sampleIndices(pool.length, 8, rng).map((i) => pool[i]);
+    const palette = sampleIndices(pool.length, PALETTE_SIZE, rng).map((i) => pool[i]);
     const answerSize = 2 + Math.floor(rng() * 3); // 2, 3, or 4
-    const answerIndices = sampleIndices(8, answerSize, rng).sort((a, b) => a - b);
+    const answerIndices = sampleIndices(PALETTE_SIZE, answerSize, rng).sort((a, b) => a - b);
     const target = mixSubset(answerIndices.map((i) => palette[i].rgb));
     return { palette, answerIndices, target };
   }
