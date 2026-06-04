@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Cordle — color mixing puzzle</title>
+<title>Cordle Paint — match the color</title>
 <style>
 :root {
   --bg: #14110f;
@@ -13,7 +13,6 @@
   --line: #3a332d;
   --accent: #d9a441;
   --good: #4caf6a;
-  --bad: #6b6259;
 }
 * { box-sizing: border-box; }
 body {
@@ -26,113 +25,85 @@ body {
 header { text-align: center; padding: 1.4rem 1rem 0.4rem; }
 h1 { margin: 0; font-size: 2rem; letter-spacing: 0.08em; font-weight: 800; }
 .tag { color: var(--muted); margin: 0.2rem 0 0; }
+.nav { text-align: center; margin: 0.3rem 0; }
+.nav a { color: var(--accent); text-decoration: none; font-weight: 600; }
 main { max-width: 560px; margin: 0 auto; padding: 1rem; }
-.targets { display: flex; gap: 1rem; justify-content: center; margin: 1rem 0 0.5rem; }
+.targets { display: flex; gap: 1rem; justify-content: center; align-items: center; margin: 0.5rem 0 1rem; }
 .swatch-big {
-  flex: 1; aspect-ratio: 1.6; border-radius: 14px; border: 1px solid var(--line);
+  flex: 1; max-width: 160px; aspect-ratio: 1.6; border-radius: 14px; border: 1px solid var(--line);
   display: flex; align-items: flex-end; padding: 0.5rem; box-shadow: inset 0 0 40px rgba(0,0,0,0.25);
 }
 .swatch-big span {
   background: rgba(0,0,0,0.45); color: #fff; font-size: 0.72rem;
   padding: 0.15rem 0.45rem; border-radius: 6px;
 }
-#hint { text-align: center; color: var(--accent); font-weight: 700; margin: 0.6rem 0 0.1rem; }
-#match-live { text-align: center; color: var(--muted); margin: 0 0 0.6rem; min-height: 1.2em; }
-.palette { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.6rem; }
-.swatch {
-  aspect-ratio: 1; border-radius: 10px; border: 2px solid var(--line); cursor: pointer;
-  position: relative; transition: transform 0.08s; display: flex; align-items: flex-end;
-  justify-content: center; padding-bottom: 0.25rem;
+.canvas-wrap { position: relative; width: 100%; max-width: 420px; margin: 0 auto; aspect-ratio: 1; }
+#paint-canvas {
+  width: 100%; height: 100%; border-radius: 12px; border: 1px solid var(--line);
+  background: #fff; touch-action: none; cursor: crosshair; display: block;
 }
-.swatch:hover { transform: translateY(-2px); }
-.swatch.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
-.swatch .name {
-  font-size: 0.6rem; text-align: center; background: rgba(0,0,0,0.5); color: #fff;
-  padding: 0.05rem 0.2rem; border-radius: 4px; line-height: 1.1;
+#spot {
+  position: absolute; width: 26px; height: 26px; border-radius: 50%;
+  border: 2px solid #000; box-shadow: 0 0 0 2px #fff; transform: translate(-50%, -50%);
+  pointer-events: none;
 }
-.controls { display: flex; align-items: center; gap: 0.6rem; margin: 1rem 0; }
+.palette { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; margin: 1rem 0 0.6rem; }
+.pig {
+  width: 46px; height: 46px; border-radius: 10px; border: 2px solid var(--line);
+  cursor: pointer; transition: transform 0.08s;
+}
+.pig:hover { transform: translateY(-2px); }
+.pig.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.sliders { display: flex; gap: 1.2rem; justify-content: center; flex-wrap: wrap; margin: 0.4rem 0; color: var(--muted); }
+.sliders label { display: flex; flex-direction: column; align-items: center; font-size: 0.8rem; gap: 0.2rem; }
+.controls { display: flex; gap: 0.6rem; justify-content: center; margin: 0.9rem 0; flex-wrap: wrap; }
 button {
   background: var(--panel); color: var(--ink); border: 1px solid var(--line);
   padding: 0.55rem 0.9rem; border-radius: 10px; cursor: pointer; font-weight: 600;
 }
 button:hover { border-color: var(--accent); }
-button#submit { background: var(--accent); color: #2a1d05; border-color: var(--accent); }
-button:disabled { opacity: 0.5; cursor: not-allowed; }
-#guesses-left { color: var(--muted); margin-left: auto; }
-.history { display: flex; flex-direction: column; gap: 0.5rem; }
-.guess-row {
-  display: flex; align-items: center; gap: 0.5rem; background: var(--panel);
-  border: 1px solid var(--line); border-radius: 10px; padding: 0.4rem 0.6rem;
-}
-.guess-chips { display: flex; gap: 0.3rem; flex-wrap: wrap; flex: 1; }
-.chip {
-  width: 22px; height: 22px; border-radius: 5px; position: relative; border: 1px solid var(--line);
-}
-.chip.in::after {
-  content: ''; position: absolute; inset: -4px; border: 2px solid var(--good); border-radius: 7px;
-}
-.chip.out { opacity: 0.55; }
-.chip.out::after {
-  content: ''; position: absolute; inset: -4px; border: 2px dashed var(--bad); border-radius: 7px;
-}
-.guess-result { width: 30px; height: 30px; border-radius: 6px; border: 1px solid var(--line); }
-.guess-match { width: 3.2rem; text-align: right; font-variant-numeric: tabular-nums; }
-#message { text-align: center; font-size: 1.1rem; font-weight: 700; margin: 0.8rem 0; min-height: 1.4em; }
-#message.win { color: var(--good); }
-#message.lose { color: var(--accent); }
-.endbar { display: flex; gap: 0.6rem; justify-content: center; }
+button#lock { background: var(--accent); color: #2a1d05; border-color: var(--accent); }
+#result { text-align: center; font-size: 1.1rem; font-weight: 700; margin: 0.6rem 0; min-height: 1.4em; }
+#result .pct { color: var(--good); }
+#best { text-align: center; color: var(--muted); font-size: 0.85rem; }
 footer { text-align: center; color: var(--muted); font-size: 0.75rem; padding: 1.5rem 1rem 2rem; }
 footer a { color: var(--muted); }
-dialog { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 14px; max-width: 360px; }
-dialog::backdrop { background: rgba(0,0,0,0.6); }
-.stats-grid { display: flex; justify-content: space-around; text-align: center; margin: 1rem 0; }
-.stats-grid b { display: block; font-size: 1.6rem; }
-.nav { text-align: center; margin: 0.3rem 0; }
-.nav a { color: var(--accent); text-decoration: none; font-weight: 600; }
 
 </style>
 </head>
 <body>
 <header>
-  <h1>CORDLE</h1>
-  <p class="tag">Pick the pigments that mix to the target color.</p>
-  <p class="nav"><a href="paint.html">Paint mode →</a></p>
+  <h1>CORDLE PAINT</h1>
+  <p class="tag">Mix paint on the canvas to match the target under the spot.</p>
+  <p class="nav"><a href="index.html">← Subset game</a></p>
 </header>
 <main>
   <section class="targets">
     <div class="swatch-big" id="target"><span>Target</span></div>
-    <div class="swatch-big" id="preview"><span>Your mix</span></div>
+    <div class="swatch-big" id="spot-readout"><span>Under spot</span></div>
   </section>
-  <p id="hint"></p>
-  <p id="match-live">&nbsp;</p>
-  <section id="palette" class="palette"></section>
+  <div class="canvas-wrap">
+    <canvas id="paint-canvas" width="420" height="420"></canvas>
+    <div id="spot"></div>
+  </div>
+  <section class="palette" id="palette"></section>
+  <div class="sliders">
+    <label>Brush size <input type="range" id="size" min="4" max="40" value="16" /></label>
+    <label>Flow <input type="range" id="flow" min="5" max="100" value="40" /></label>
+  </div>
   <div class="controls">
-    <button id="submit">Submit guess</button>
-    <button id="clear">Clear</button>
-    <span id="guesses-left"></span>
+    <button id="lock">Lock in</button>
+    <button id="clear">Clear canvas</button>
+    <button id="new">New target</button>
   </div>
-  <section id="history" class="history"></section>
-  <div id="message"></div>
-  <div class="endbar">
-    <button id="new">New puzzle</button>
-    <button id="stats-btn">Stats</button>
-  </div>
+  <div id="result"></div>
+  <div id="best"></div>
 </main>
 <footer>
   Pigment mixing by
   <a href="https://github.com/scrtwpns/mixbox" target="_blank" rel="noopener">Mixbox</a>
   © Secret Weapons — CC BY-NC 4.0. A non-commercial fan project.
 </footer>
-<dialog id="stats-dialog">
-  <h2>Stats</h2>
-  <div class="stats-grid">
-    <div><b id="st-played">0</b>Played</div>
-    <div><b id="st-winpct">0</b>Win %</div>
-    <div><b id="st-streak">0</b>Streak</div>
-    <div><b id="st-best">0</b>Best</div>
-  </div>
-  <form method="dialog"><button>Close</button></form>
-</dialog>
 <script>
 // ==========================================================
 //  MIXBOX 2.0 (c) 2022 Secret Weapons. All rights reserved.
@@ -1244,183 +1215,299 @@ dialog::backdrop { background: rgba(0,0,0,0.6); }
 
 </script>
 <script>
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) {
+    module.exports = factory(require('../mixbox.js'));
+  } else {
+    root.CordlePaint = factory(root.mixbox);
+  }
+}(typeof self !== 'undefined' ? self : this, function (mixbox) {
+  'use strict';
+
+  const L = mixbox.LATENT_SIZE; // 7
+  const MIN_CONTRIBUTOR_WEIGHT = 0.15; // a target must blend >=2 pigments above this
+
+  // Pixel bounding box of a disk, clamped to the buffer.
+  function clipBounds(w, h, cx, cy, radius) {
+    return {
+      x0: Math.max(0, Math.floor(cx - radius)),
+      x1: Math.min(w - 1, Math.ceil(cx + radius)),
+      y0: Math.max(0, Math.floor(cy - radius)),
+      y1: Math.min(h - 1, Math.ceil(cy + radius)),
+    };
+  }
+
+  const PAINT_PALETTE = [
+    { name: 'Cadmium Yellow', rgb: [254, 236, 0] },
+    { name: 'Cadmium Red', rgb: [255, 39, 2] },
+    { name: 'Ultramarine Blue', rgb: [25, 0, 89] },
+    { name: 'Titanium White', rgb: [243, 243, 243] },
+    { name: 'Ivory Black', rgb: [0, 0, 0] },
+  ];
+
+  function pigmentLatents(palette) {
+    return palette.map((p) => {
+      const z = mixbox.rgbToLatent(p.rgb[0], p.rgb[1], p.rgb[2]);
+      return Array.from(z);
+    });
+  }
+
+  function createBuffer(w, h) {
+    return { w, h, accum: new Float32Array(w * h * L), weight: new Float32Array(w * h) };
+  }
+
+  function clearBuffer(buf) {
+    buf.accum.fill(0);
+    buf.weight.fill(0);
+  }
+
+  function addDab(buf, cx, cy, radius, flow, pigmentLatent) {
+    if (radius <= 0) return; // a zero/negative brush deposits nothing (avoids NaN)
+    const { w, h, accum, weight } = buf;
+    const { x0, x1, y0, y1 } = clipBounds(w, h, cx, cy, radius);
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const dx = x - cx, dy = y - cy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > radius) continue;
+        const wgt = flow * (1 - dist / radius); // soft falloff
+        if (wgt <= 0) continue;
+        const p = y * w + x;
+        const base = p * L;
+        for (let i = 0; i < L; i++) accum[base + i] += wgt * pigmentLatent[i];
+        weight[p] += wgt;
+      }
+    }
+  }
+
+  function latentColorAtIndex(buf, p) {
+    const wgt = buf.weight[p];
+    if (wgt <= 0) return [255, 255, 255];
+    const base = p * L;
+    const z = new Array(L);
+    for (let i = 0; i < L; i++) z[i] = buf.accum[base + i] / wgt;
+    const o = mixbox.latentToRgb(z);
+    return [o[0], o[1], o[2]];
+  }
+
+  function colorAt(buf, x, y) {
+    return latentColorAtIndex(buf, y * buf.w + x);
+  }
+
+  function sampleSpot(buf, cx, cy, sampleRadius) {
+    const { w, h, accum, weight } = buf;
+    const z = new Array(L).fill(0);
+    let wsum = 0;
+    const { x0, x1, y0, y1 } = clipBounds(w, h, cx, cy, sampleRadius);
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const dx = x - cx, dy = y - cy;
+        if (Math.sqrt(dx * dx + dy * dy) > sampleRadius) continue;
+        const p = y * w + x;
+        const base = p * L;
+        for (let i = 0; i < L; i++) z[i] += accum[base + i];
+        wsum += weight[p];
+      }
+    }
+    if (wsum <= 0) return [255, 255, 255];
+    for (let i = 0; i < L; i++) z[i] /= wsum;
+    const o = mixbox.latentToRgb(z);
+    return [o[0], o[1], o[2]];
+  }
+
+  function generateTarget(palette, rng) {
+    rng = rng || Math.random;
+    const latents = pigmentLatents(palette);
+    let weights = palette.map(() => 1 / palette.length); // uniform fallback (always valid)
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const raw = palette.map(() => { const r = rng(); return r * r; });
+      const sum = raw.reduce((a, b) => a + b, 0);
+      if (sum <= 0) continue;
+      const candidate = raw.map((x) => x / sum);
+      if (candidate.filter((x) => x >= MIN_CONTRIBUTOR_WEIGHT).length >= 2) {
+        weights = candidate;
+        break;
+      }
+    }
+    const z = new Array(L).fill(0);
+    for (let k = 0; k < palette.length; k++)
+      for (let i = 0; i < L; i++) z[i] += weights[k] * latents[k][i];
+    const o = mixbox.latentToRgb(z);
+    return { weights, rgb: [o[0], o[1], o[2]] };
+  }
+
+  return {
+    LATENT_SIZE: L,
+    PAINT_PALETTE,
+    pigmentLatents,
+    createBuffer,
+    clearBuffer,
+    addDab,
+    colorAt,
+    sampleSpot,
+    generateTarget,
+  };
+}));
+
+</script>
+<script>
 (function () {
   'use strict';
+  const P = window.CordlePaint;
   const E = window.CordleEngine;
-  const MAX_GUESSES = 6;
-  const STATS_KEY = 'cordle-stats';
+
+  const W = 420, H = 420;
+  const SPOT_X = 210, SPOT_Y = 210, SAMPLE_RADIUS = 6;
+  const BEST_KEY = 'cordle-paint-best';
 
   const $ = (id) => document.getElementById(id);
-  const rgbCss = (rgb) => `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+  const rgbCss = (rgb) => `rgb(${Math.round(rgb[0])}, ${Math.round(rgb[1])}, ${Math.round(rgb[2])})`;
 
-  let state = null;
+  const canvas = $('paint-canvas');
+  const ctx = canvas.getContext('2d');
+  const img = ctx.createImageData(W, H);
 
-  function loadStats() {
-    try {
-      return JSON.parse(localStorage.getItem(STATS_KEY)) || {
-        played: 0, won: 0, streak: 0, best: 0,
-      };
-    } catch (e) {
-      return { played: 0, won: 0, streak: 0, best: 0 };
+  const latents = P.pigmentLatents(P.PAINT_PALETTE);
+  const buffer = P.createBuffer(W, H);
+
+  let target = null;
+  let selected = 0;
+  let painting = false;
+  let last = null;
+
+  function fillWhite() {
+    for (let i = 0; i < img.data.length; i += 4) {
+      img.data[i] = 255; img.data[i + 1] = 255; img.data[i + 2] = 255; img.data[i + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  function renderRegion(cx, cy, radius) {
+    const x0 = Math.max(0, Math.floor(cx - radius));
+    const x1 = Math.min(W - 1, Math.ceil(cx + radius));
+    const y0 = Math.max(0, Math.floor(cy - radius));
+    const y1 = Math.min(H - 1, Math.ceil(cy + radius));
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        const c = P.colorAt(buffer, x, y);
+        const idx = (y * W + x) * 4;
+        img.data[idx] = c[0]; img.data[idx + 1] = c[1]; img.data[idx + 2] = c[2]; img.data[idx + 3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0, x0, y0, (x1 - x0) + 1, (y1 - y0) + 1);
+  }
+
+  function positionSpot() {
+    const spot = $('spot');
+    spot.style.left = (SPOT_X / W * 100) + '%';
+    spot.style.top = (SPOT_Y / H * 100) + '%';
+  }
+
+  function toLogical(ev) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (ev.clientX - rect.left) * (W / rect.width),
+      y: (ev.clientY - rect.top) * (H / rect.height),
+    };
+  }
+
+  function brush() {
+    return { radius: +$('size').value, flow: (+$('flow').value) / 100 };
+  }
+
+  function stroke(x, y) {
+    const { radius, flow } = brush();
+    P.addDab(buffer, x, y, radius, flow, latents[selected]);
+    renderRegion(x, y, radius);
+  }
+
+  function strokeLine(a, b) {
+    const { radius } = brush();
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const steps = Math.max(1, Math.floor(dist / (radius / 2)));
+    for (let s = 1; s <= steps; s++) {
+      stroke(a.x + (dx * s) / steps, a.y + (dy * s) / steps);
     }
   }
 
-  function saveStats(s) {
-    try { localStorage.setItem(STATS_KEY, JSON.stringify(s)); } catch (e) {}
-  }
-
-  function recordResult(won) {
-    const s = loadStats();
-    s.played += 1;
-    if (won) {
-      s.won += 1;
-      s.streak += 1;
-      s.best = Math.max(s.best, s.streak);
-    } else {
-      s.streak = 0;
-    }
-    saveStats(s);
-  }
-
-  function showStats() {
-    const s = loadStats();
-    $('st-played').textContent = s.played;
-    $('st-winpct').textContent = s.played ? Math.round((s.won / s.played) * 100) : 0;
-    $('st-streak').textContent = s.streak;
-    $('st-best').textContent = s.best;
-    $('stats-dialog').showModal();
-  }
-
-  function newPuzzle() {
-    const puzzle = E.generatePuzzle(E.PIGMENTS, Math.random);
-    state = { puzzle, selected: new Set(), guessesUsed: 0, over: false };
-    $('message').textContent = '';
-    $('message').className = '';
-    $('history').innerHTML = '';
-    $('target').style.background = rgbCss(puzzle.target);
-    $('hint').textContent = `This mix uses ${puzzle.answerIndices.length} colors.`;
-    renderPalette();
-    updatePreview();
-    updateControls();
-  }
+  canvas.addEventListener('pointerdown', (ev) => {
+    canvas.setPointerCapture(ev.pointerId);
+    painting = true;
+    const pt = toLogical(ev);
+    last = pt;
+    stroke(pt.x, pt.y);
+  });
+  canvas.addEventListener('pointermove', (ev) => {
+    if (!painting) return;
+    const pt = toLogical(ev);
+    strokeLine(last, pt);
+    last = pt;
+  });
+  const endStroke = () => { painting = false; last = null; };
+  canvas.addEventListener('pointerup', endStroke);
+  canvas.addEventListener('pointercancel', endStroke);
+  canvas.addEventListener('pointerleave', endStroke);
 
   function renderPalette() {
     const pal = $('palette');
     pal.innerHTML = '';
-    state.puzzle.palette.forEach((pig, i) => {
+    P.PAINT_PALETTE.forEach((pig, i) => {
       const el = document.createElement('div');
-      el.className = 'swatch' + (state.selected.has(i) ? ' selected' : '');
+      el.className = 'pig' + (i === selected ? ' selected' : '');
       el.style.background = rgbCss(pig.rgb);
-      el.innerHTML = `<span class="name">${pig.name}</span>`;
-      el.addEventListener('click', () => toggle(i));
+      el.title = pig.name;
+      el.addEventListener('click', () => { selected = i; renderPalette(); });
       pal.appendChild(el);
     });
   }
 
-  function toggle(i) {
-    if (state.over) return;
-    if (state.selected.has(i)) state.selected.delete(i);
-    else state.selected.add(i);
-    renderPalette();
-    updatePreview();
-    updateControls();
+  function clearCanvas() {
+    P.clearBuffer(buffer);
+    fillWhite();
+    $('spot-readout').style.background = '#fff';
+    $('result').innerHTML = '';
   }
 
-  function updatePreview() {
-    const sel = [...state.selected];
-    const mix = E.mixSubset(sel.map((i) => state.puzzle.palette[i].rgb));
-    if (mix) {
-      $('preview').style.background = rgbCss(mix);
-      const m = E.matchPercent(mix, state.puzzle.target);
-      $('match-live').textContent = `Current mix: ${m}% match`;
-    } else {
-      $('preview').style.background = 'transparent';
-      $('match-live').innerHTML = '&nbsp;';
+  function newTarget() {
+    target = P.generateTarget(P.PAINT_PALETTE, Math.random);
+    $('target').style.background = rgbCss(target.rgb);
+    clearCanvas();
+  }
+
+  function tier(pct) {
+    if (pct >= 98) return 'Nailed it!';
+    if (pct >= 90) return 'Great';
+    if (pct >= 75) return 'Close';
+    return 'Keep mixing';
+  }
+
+  function lockIn() {
+    const c = P.sampleSpot(buffer, SPOT_X, SPOT_Y, SAMPLE_RADIUS);
+    $('spot-readout').style.background = rgbCss(c);
+    const pct = E.matchPercent(c, target.rgb);
+    $('result').innerHTML = `<span class="pct">${pct}%</span> — ${tier(pct)}`;
+    let best = 0;
+    try { best = +localStorage.getItem(BEST_KEY) || 0; } catch (e) { best = 0; }
+    if (pct > best) {
+      best = pct;
+      try { localStorage.setItem(BEST_KEY, String(best)); } catch (e) {}
     }
+    $('best').textContent = `Best match: ${best}%`;
   }
 
-  function updateControls() {
-    $('guesses-left').textContent = `${MAX_GUESSES - state.guessesUsed} guesses left`;
-    $('submit').disabled = state.over || state.selected.size === 0;
-    $('clear').disabled = state.over || state.selected.size === 0;
-  }
+  $('lock').addEventListener('click', lockIn);
+  $('clear').addEventListener('click', clearCanvas);
+  $('new').addEventListener('click', newTarget);
 
-  function submitGuess() {
-    if (state.over || state.selected.size === 0) return;
-    const selected = [...state.selected].sort((a, b) => a - b);
-    const r = E.evaluateGuess(
-      selected, state.puzzle.answerIndices, state.puzzle.palette, state.puzzle.target
-    );
-    state.guessesUsed += 1;
-    addHistoryRow(r);
+  let best0 = 0;
+  try { best0 = +localStorage.getItem(BEST_KEY) || 0; } catch (e) { best0 = 0; }
+  $('best').textContent = `Best match: ${best0}%`;
 
-    if (r.win) {
-      endGame(true);
-    } else if (state.guessesUsed >= MAX_GUESSES) {
-      endGame(false);
-    } else {
-      updateControls();
-    }
-  }
-
-  function addHistoryRow(r) {
-    const row = document.createElement('div');
-    row.className = 'guess-row';
-    const chips = document.createElement('div');
-    chips.className = 'guess-chips';
-    r.perSwatch.forEach((p) => {
-      const c = document.createElement('div');
-      c.className = 'chip ' + (p.inAnswer ? 'in' : 'out');
-      c.style.background = rgbCss(state.puzzle.palette[p.index].rgb);
-      c.title = state.puzzle.palette[p.index].name + (p.inAnswer ? ' ✓' : ' ✗');
-      chips.appendChild(c);
-    });
-    const result = document.createElement('div');
-    result.className = 'guess-result';
-    result.style.background = rgbCss(r.mixedRgb);
-    const match = document.createElement('div');
-    match.className = 'guess-match';
-    match.textContent = `${r.match}%`;
-    row.append(chips, result, match);
-    $('history').appendChild(row);
-  }
-
-  function endGame(won) {
-    state.over = true;
-    recordResult(won);
-    const msg = $('message');
-    if (won) {
-      msg.textContent = `Solved in ${state.guessesUsed}/${MAX_GUESSES}!`;
-      msg.className = 'win';
-    } else {
-      const names = state.puzzle.answerIndices
-        .map((i) => state.puzzle.palette[i].name).join(' + ');
-      msg.textContent = `Out of guesses. Answer: ${names}.`;
-      msg.className = 'lose';
-      revealAnswer();
-    }
-    updateControls();
-  }
-
-  function revealAnswer() {
-    const swatches = $('palette').children;
-    state.puzzle.answerIndices.forEach((i) => {
-      swatches[i].classList.add('selected');
-    });
-  }
-
-  $('submit').addEventListener('click', submitGuess);
-  $('clear').addEventListener('click', () => {
-    if (state.over) return;
-    state.selected.clear();
-    renderPalette();
-    updatePreview();
-    updateControls();
-  });
-  $('new').addEventListener('click', newPuzzle);
-  $('stats-btn').addEventListener('click', showStats);
-
-  newPuzzle();
+  positionSpot();
+  renderPalette();
+  fillWhite();
+  newTarget();
 })();
 
 </script>
