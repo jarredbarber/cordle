@@ -16,3 +16,21 @@ test('mixSubset: empty selection returns null', () => {
   assert.strictEqual(E.mixSubset([]), null);
   assert.strictEqual(E.mixSubset(null), null);
 });
+
+test('matchPercent: identical colors are 100%', () => {
+  assert.strictEqual(E.matchPercent([10, 20, 30], [10, 20, 30]), 100);
+});
+
+test('matchPercent: black vs white is near 0%', () => {
+  assert.ok(E.matchPercent([0, 0, 0], [255, 255, 255]) < 10);
+});
+
+test('matchPercent: close colors score higher than far colors', () => {
+  const near = E.matchPercent([100, 100, 100], [110, 100, 100]);
+  const far = E.matchPercent([100, 100, 100], [200, 50, 10]);
+  assert.ok(near > far);
+});
+
+test('rgbToLab + deltaE: identical colors have zero distance', () => {
+  assert.strictEqual(E.deltaE(E.rgbToLab([50, 80, 120]), E.rgbToLab([50, 80, 120])), 0);
+});
