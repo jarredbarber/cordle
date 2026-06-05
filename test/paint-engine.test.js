@@ -68,6 +68,17 @@ test('sampleSpot: averages a single-pigment region to that pigment; white if unp
   assert.ok(close(P.sampleSpot(buf, 20, 20, 6), YELLOW), `got ${P.sampleSpot(buf, 20, 20, 6)}`);
 });
 
+test('sampleLatent: zero weight on bare paper, positive on paint; z has length LATENT_SIZE', () => {
+  const buf = P.createBuffer(41, 41);
+  const empty = P.sampleLatent(buf, 20, 20, 6);
+  assert.strictEqual(empty.weight, 0);
+  assert.strictEqual(empty.z.length, P.LATENT_SIZE);
+  P.addDab(buf, 20, 20, 10, 0.8, latentOf(YELLOW));
+  const s = P.sampleLatent(buf, 20, 20, 6);
+  assert.ok(s.weight > 0, `expected paint weight, got ${s.weight}`);
+  assert.strictEqual(s.z.length, P.LATENT_SIZE);
+});
+
 function seededRng(seed) {
   let s = seed >>> 0;
   return () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };

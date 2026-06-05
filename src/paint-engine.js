@@ -77,24 +77,29 @@
     return latentColorAtIndex(buf, y * buf.w + x);
   }
 
-  function sampleSpot(buf, cx, cy, sampleRadius) {
+  function sampleLatent(buf, cx, cy, r) {
     const { w, h, accum, weight } = buf;
     const z = new Array(L).fill(0);
     let wsum = 0;
-    const { x0, x1, y0, y1 } = clipBounds(w, h, cx, cy, sampleRadius);
+    const { x0, x1, y0, y1 } = clipBounds(w, h, cx, cy, r);
     for (let y = y0; y <= y1; y++) {
       for (let x = x0; x <= x1; x++) {
         const dx = x - cx, dy = y - cy;
-        if (Math.sqrt(dx * dx + dy * dy) > sampleRadius) continue;
+        if (Math.sqrt(dx * dx + dy * dy) > r) continue;
         const p = y * w + x;
         const base = p * L;
         for (let i = 0; i < L; i++) z[i] += accum[base + i];
         wsum += weight[p];
       }
     }
-    if (wsum <= 0) return [255, 255, 255];
-    for (let i = 0; i < L; i++) z[i] /= wsum;
-    const o = mixbox.latentToRgb(z);
+    if (wsum > 0) for (let i = 0; i < L; i++) z[i] /= wsum;
+    return { z, weight: wsum };
+  }
+
+  function sampleSpot(buf, cx, cy, sampleRadius) {
+    const s = sampleLatent(buf, cx, cy, sampleRadius);
+    if (s.weight <= 0) return [255, 255, 255];
+    const o = mixbox.latentToRgb(s.z);
     return [o[0], o[1], o[2]];
   }
 
@@ -127,6 +132,7 @@
     clearBuffer,
     addDab,
     colorAt,
+    sampleLatent,
     sampleSpot,
     generateTarget,
   };
