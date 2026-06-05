@@ -11,9 +11,12 @@
   const DEFAULT_CAPACITY = 1.0;
   const BRISTLE_COUNT = 16;
   const BRISTLE_SUB = 0.35;
-  const PICKUP_K = 0.5;
+  const PICKUP_K = 0.5;         // wetness 1 => carried color blends 50% toward canvas
+  const PICKUP_DRY_GAIN = 0.5;  // how much a near-empty brush refills when smudging wet paint
   const DEPOSIT_K = 1.0;
-  const CONSUME_K = 0.03;
+  const CONSUME_K = 0.03;       // load consumed per bristle deposit (controls run-out)
+  const SPEED_TAPER_SCALE = 0.05; // higher => quick strokes taper thinner
+  const BRISTLE_MIN_STRENGTH = 0.4; // per-bristle strength spans [MIN, 1.0]
   const DRY = 1e-4;
 
   function createBrush() {
@@ -48,13 +51,14 @@
     for (let i = 0; i < count; i++) {
       const ang = rnd() * Math.PI * 2;
       const rad = Math.sqrt(rnd()) * radius;
-      out.push({ dx: Math.cos(ang) * rad, dy: Math.sin(ang) * rad, strength: 0.4 + 0.6 * rnd() });
+      const strength = BRISTLE_MIN_STRENGTH + (1 - BRISTLE_MIN_STRENGTH) * rnd();
+      out.push({ dx: Math.cos(ang) * rad, dy: Math.sin(ang) * rad, strength });
     }
     return out;
   }
 
   function speedTaper(speed) {
-    return 1 / (1 + (speed || 0) * 0.05);
+    return 1 / (1 + (speed || 0) * SPEED_TAPER_SCALE);
   }
 
   function applyBrushDab(buf, brush, cx, cy, opts) {
@@ -76,7 +80,7 @@
             brush.accum[i] = ((1 - k) * carried + k * s.z[i]) * brush.weight;
           }
         } else {
-          const gain = k * 0.5;
+          const gain = k * PICKUP_DRY_GAIN;
           for (let i = 0; i < L; i++) brush.accum[i] += gain * s.z[i];
           brush.weight += gain;
           if (!brush.capacity) brush.capacity = DEFAULT_CAPACITY;
