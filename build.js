@@ -4,13 +4,26 @@ const path = require('node:path');
 const root = __dirname;
 const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
 
-let html = read('src/template.html');
 // Use function replacements so `$` in the Mixbox LUT is not treated as a
 // special replacement pattern by String.prototype.replace.
-html = html.replace('/*STYLE*/', () => read('src/style.css'));
-html = html.replace('//MIXBOX', () => read('mixbox.js'));
-html = html.replace('//ENGINE', () => read('src/engine.js'));
-html = html.replace('//UI', () => read('src/ui.js'));
+function build(template, outfile, tokens) {
+  let html = read(template);
+  for (const [token, file] of tokens) html = html.replace(token, () => read(file));
+  fs.writeFileSync(path.join(root, outfile), html);
+  console.log(`Built ${outfile} (${html.length} bytes)`);
+}
 
-fs.writeFileSync(path.join(root, 'index.html'), html);
-console.log(`Built index.html (${html.length} bytes)`);
+build('src/template.html', 'index.html', [
+  ['/*STYLE*/', 'src/style.css'],
+  ['//MIXBOX', 'mixbox.js'],
+  ['//ENGINE', 'src/engine.js'],
+  ['//UI', 'src/ui.js'],
+]);
+
+build('src/paint-template.html', 'paint.html', [
+  ['/*PAINT-STYLE*/', 'src/paint-style.css'],
+  ['//MIXBOX', 'mixbox.js'],
+  ['//ENGINE', 'src/engine.js'],
+  ['//PAINT-ENGINE', 'src/paint-engine.js'],
+  ['//PAINT-UI', 'src/paint-ui.js'],
+]);
