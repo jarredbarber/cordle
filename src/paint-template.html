@@ -27,6 +27,12 @@
   <div class="sliders">
     <label>Brush size <input type="range" id="size" min="4" max="40" value="16" /></label>
     <label>Flow <input type="range" id="flow" min="5" max="100" value="40" /></label>
+    <label>Wetness <input type="range" id="wet" min="0" max="100" value="50" /></label>
+  </div>
+  <div class="brushinfo">
+    <span class="brushinfo-label">Brush</span>
+    <div class="brush-swatch" id="brush-swatch"></div>
+    <div class="load-track"><div class="load-fill" id="brush-load"></div></div>
   </div>
   <div class="controls">
     <button id="lock">Lock in</button>
@@ -49,6 +55,9 @@
 </script>
 <script>
 //PAINT-ENGINE
+</script>
+<script>
+//BRUSH
 </script>
 <script>
 //PAINT-UI

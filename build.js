@@ -25,5 +25,6 @@ build('src/paint-template.html', 'paint.html', [
   ['//MIXBOX', 'mixbox.js'],
   ['//ENGINE', 'src/engine.js'],
   ['//PAINT-ENGINE', 'src/paint-engine.js'],
+  ['//BRUSH', 'src/brush.js'],
   ['//PAINT-UI', 'src/paint-ui.js'],
 ]);

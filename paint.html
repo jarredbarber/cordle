@@ -68,6 +68,10 @@ button#lock { background: var(--accent); color: #2a1d05; border-color: var(--acc
 #best { text-align: center; color: var(--muted); font-size: 0.85rem; }
 footer { text-align: center; color: var(--muted); font-size: 0.75rem; padding: 1.5rem 1rem 2rem; }
 footer a { color: var(--muted); }
+.brushinfo { display: flex; align-items: center; gap: 0.6rem; justify-content: center; margin: 0.2rem 0 0.4rem; color: var(--muted); font-size: 0.8rem; }
+.brush-swatch { width: 28px; height: 28px; border-radius: 7px; border: 1px solid var(--line); background: transparent; }
+.load-track { width: 120px; height: 8px; border-radius: 5px; background: var(--panel); border: 1px solid var(--line); overflow: hidden; }
+.load-fill { height: 100%; width: 0%; background: var(--accent); transition: width 0.05s linear; }
 
 </style>
 </head>
@@ -90,6 +94,12 @@ footer a { color: var(--muted); }
   <div class="sliders">
     <label>Brush size <input type="range" id="size" min="4" max="40" value="16" /></label>
     <label>Flow <input type="range" id="flow" min="5" max="100" value="40" /></label>
+    <label>Wetness <input type="range" id="wet" min="0" max="100" value="50" /></label>
+  </div>
+  <div class="brushinfo">
+    <span class="brushinfo-label">Brush</span>
+    <div class="brush-swatch" id="brush-swatch"></div>
+    <div class="load-track"><div class="load-fill" id="brush-load"></div></div>
   </div>
   <div class="controls">
     <button id="lock">Lock in</button>
@@ -1294,24 +1304,29 @@ footer a { color: var(--muted); }
     return latentColorAtIndex(buf, y * buf.w + x);
   }
 
-  function sampleSpot(buf, cx, cy, sampleRadius) {
+  function sampleLatent(buf, cx, cy, r) {
     const { w, h, accum, weight } = buf;
     const z = new Array(L).fill(0);
     let wsum = 0;
-    const { x0, x1, y0, y1 } = clipBounds(w, h, cx, cy, sampleRadius);
+    const { x0, x1, y0, y1 } = clipBounds(w, h, cx, cy, r);
     for (let y = y0; y <= y1; y++) {
       for (let x = x0; x <= x1; x++) {
         const dx = x - cx, dy = y - cy;
-        if (Math.sqrt(dx * dx + dy * dy) > sampleRadius) continue;
+        if (Math.sqrt(dx * dx + dy * dy) > r) continue;
         const p = y * w + x;
         const base = p * L;
         for (let i = 0; i < L; i++) z[i] += accum[base + i];
         wsum += weight[p];
       }
     }
-    if (wsum <= 0) return [255, 255, 255];
-    for (let i = 0; i < L; i++) z[i] /= wsum;
-    const o = mixbox.latentToRgb(z);
+    if (wsum > 0) for (let i = 0; i < L; i++) z[i] /= wsum;
+    return { z, weight: wsum };
+  }
+
+  function sampleSpot(buf, cx, cy, sampleRadius) {
+    const s = sampleLatent(buf, cx, cy, sampleRadius);
+    if (s.weight <= 0) return [255, 255, 255];
+    const o = mixbox.latentToRgb(s.z);
     return [o[0], o[1], o[2]];
   }
 
@@ -1344,8 +1359,124 @@ footer a { color: var(--muted); }
     clearBuffer,
     addDab,
     colorAt,
+    sampleLatent,
     sampleSpot,
     generateTarget,
+  };
+}));
+
+</script>
+<script>
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) {
+    module.exports = factory(require('../mixbox.js'), require('./paint-engine.js'));
+  } else {
+    root.CordleBrush = factory(root.mixbox, root.CordlePaint);
+  }
+}(typeof self !== 'undefined' ? self : this, function (mixbox, paint) {
+  'use strict';
+
+  const L = mixbox.LATENT_SIZE;
+  const DEFAULT_CAPACITY = 1.0;
+  const BRISTLE_COUNT = 16;
+  const BRISTLE_SUB = 0.35;
+  const PICKUP_K = 0.5;         // wetness 1 => carried color blends 50% toward canvas
+  const PICKUP_DRY_GAIN = 0.5;  // how much a near-empty brush refills when smudging wet paint
+  const DEPOSIT_K = 1.0;
+  const CONSUME_K = 0.03;       // load consumed per bristle deposit (controls run-out)
+  const SPEED_TAPER_SCALE = 0.05; // higher => quick strokes taper thinner
+  const BRISTLE_MIN_STRENGTH = 0.4; // per-bristle strength spans [MIN, 1.0]
+  const DRY = 1e-4;
+
+  function createBrush() {
+    return { accum: new Array(L).fill(0), weight: 0, capacity: DEFAULT_CAPACITY };
+  }
+
+  function loadBrush(brush, pigmentLatent, capacity) {
+    const cap = capacity || DEFAULT_CAPACITY;
+    brush.capacity = cap;
+    brush.weight = cap;
+    for (let i = 0; i < L; i++) brush.accum[i] = pigmentLatent[i] * cap;
+  }
+
+  function brushColor(brush) {
+    if (brush.weight <= DRY) return null;
+    const z = new Array(L);
+    for (let i = 0; i < L; i++) z[i] = brush.accum[i] / brush.weight;
+    const o = mixbox.latentToRgb(z);
+    return [o[0], o[1], o[2]];
+  }
+
+  function brushLoad(brush) {
+    if (!brush.capacity) return 0;
+    return Math.max(0, Math.min(1, brush.weight / brush.capacity));
+  }
+
+  function bristleOffsets(radius, seed, count) {
+    count = count || BRISTLE_COUNT;
+    let s = (seed >>> 0) || 1;
+    const rnd = () => { s = (s * 1103515245 + 12345) & 0x7fffffff; return s / 0x7fffffff; };
+    const out = [];
+    for (let i = 0; i < count; i++) {
+      const ang = rnd() * Math.PI * 2;
+      const rad = Math.sqrt(rnd()) * radius;
+      const strength = BRISTLE_MIN_STRENGTH + (1 - BRISTLE_MIN_STRENGTH) * rnd();
+      out.push({ dx: Math.cos(ang) * rad, dy: Math.sin(ang) * rad, strength });
+    }
+    return out;
+  }
+
+  function speedTaper(speed) {
+    return 1 / (1 + (speed || 0) * SPEED_TAPER_SCALE);
+  }
+
+  function applyBrushDab(buf, brush, cx, cy, opts) {
+    const radius = opts.radius;
+    const flow = opts.flow;
+    const wetness = opts.wetness != null ? opts.wetness : 0;
+    const bristles = opts.bristles || bristleOffsets(radius, 1, BRISTLE_COUNT);
+    const taper = speedTaper(opts.speed || 0);
+    const subR = Math.max(1, radius * BRISTLE_SUB);
+
+    // Pickup once: tint the carried color toward the wet canvas under the footprint.
+    const s = paint.sampleLatent(buf, cx, cy, radius);
+    if (s.weight > 0) {
+      const k = wetness * PICKUP_K;
+      if (k > 0) {
+        if (brush.weight > DRY) {
+          for (let i = 0; i < L; i++) {
+            const carried = brush.accum[i] / brush.weight;
+            brush.accum[i] = ((1 - k) * carried + k * s.z[i]) * brush.weight;
+          }
+        } else {
+          const gain = k * PICKUP_DRY_GAIN;
+          for (let i = 0; i < L; i++) brush.accum[i] += gain * s.z[i];
+          brush.weight += gain;
+          if (!brush.capacity) brush.capacity = DEFAULT_CAPACITY;
+        }
+      }
+    }
+
+    // Deposit per bristle, scaled by remaining load; then deplete.
+    for (const b of bristles) {
+      if (brush.weight <= DRY) break;
+      const bx = cx + b.dx, by = cy + b.dy;
+      const dep = flow * b.strength * taper * DEPOSIT_K * brushLoad(brush);
+      if (dep <= 0) continue;
+      const carried = new Array(L);
+      for (let i = 0; i < L; i++) carried[i] = brush.accum[i] / brush.weight;
+      paint.addDab(buf, bx, by, subR, dep, carried);
+      const before = brush.weight;
+      brush.weight = Math.max(0, brush.weight - dep * CONSUME_K);
+      const ratio = before > 0 ? brush.weight / before : 0;
+      for (let i = 0; i < L; i++) brush.accum[i] *= ratio;
+    }
+  }
+
+  return {
+    L, BRISTLE_COUNT, DEFAULT_CAPACITY,
+    createBrush, loadBrush, brushColor, brushLoad, bristleOffsets, speedTaper,
+    applyBrushDab,
   };
 }));
 
@@ -1355,6 +1486,7 @@ footer a { color: var(--muted); }
   'use strict';
   const P = window.CordlePaint;
   const E = window.CordleEngine;
+  const Bsh = window.CordleBrush;
 
   const W = 420, H = 420;
   const SPOT_X = 210, SPOT_Y = 210, SAMPLE_RADIUS = 6;
@@ -1369,11 +1501,14 @@ footer a { color: var(--muted); }
 
   const latents = P.pigmentLatents(P.PAINT_PALETTE);
   const buffer = P.createBuffer(W, H);
+  const brush = Bsh.createBrush();
 
   let target = null;
   let selected = 0;
   let painting = false;
   let last = null;
+  let strokeSeed = 1;
+  let bristles = Bsh.bristleOffsets(16, strokeSeed, undefined);
 
   function fillWhite() {
     for (let i = 0; i < img.data.length; i += 4) {
@@ -1411,43 +1546,62 @@ footer a { color: var(--muted); }
     };
   }
 
-  function brush() {
-    return { radius: +$('size').value, flow: (+$('flow').value) / 100 };
+  function controls() {
+    return {
+      radius: +$('size').value,
+      flow: (+$('flow').value) / 100,
+      wetness: (+$('wet').value) / 100,
+    };
   }
 
-  function stroke(x, y) {
-    const { radius, flow } = brush();
-    P.addDab(buffer, x, y, radius, flow, latents[selected]);
+  function updateBrushIndicator() {
+    const c = Bsh.brushColor(brush);
+    $('brush-swatch').style.background = c ? rgbCss(c) : 'transparent';
+    $('brush-load').style.width = (Bsh.brushLoad(brush) * 100) + '%';
+  }
+
+  function dab(x, y, speed) {
+    const { radius, flow, wetness } = controls();
+    Bsh.applyBrushDab(buffer, brush, x, y, { radius, flow, wetness, bristles, speed });
     renderRegion(x, y, radius);
   }
 
-  function strokeLine(a, b) {
-    const { radius } = brush();
+  function dabLine(a, b) {
+    const { radius } = controls();
     const dx = b.x - a.x, dy = b.y - a.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    const steps = Math.max(1, Math.floor(dist / (radius / 2)));
+    const steps = Math.max(1, Math.floor(dist / Math.max(1, radius * 0.4)));
     for (let s = 1; s <= steps; s++) {
-      stroke(a.x + (dx * s) / steps, a.y + (dy * s) / steps);
+      dab(a.x + (dx * s) / steps, a.y + (dy * s) / steps, dist);
     }
+    updateBrushIndicator();
   }
 
   canvas.addEventListener('pointerdown', (ev) => {
     canvas.setPointerCapture(ev.pointerId);
     painting = true;
+    strokeSeed += 1;
+    bristles = Bsh.bristleOffsets(+$('size').value, strokeSeed, undefined);
     const pt = toLogical(ev);
     last = pt;
-    stroke(pt.x, pt.y);
+    dab(pt.x, pt.y, 0);
+    updateBrushIndicator();
   });
   canvas.addEventListener('pointermove', (ev) => {
     if (!painting) return;
     const pt = toLogical(ev);
-    strokeLine(last, pt);
+    dabLine(last, pt);
     last = pt;
   });
   const endStroke = () => { painting = false; last = null; };
   canvas.addEventListener('pointerup', endStroke);
   canvas.addEventListener('pointercancel', endStroke);
   canvas.addEventListener('pointerleave', endStroke);
+
+  function reload() {
+    Bsh.loadBrush(brush, latents[selected]);
+    updateBrushIndicator();
+  }
 
   function renderPalette() {
     const pal = $('palette');
@@ -1457,7 +1611,7 @@ footer a { color: var(--muted); }
       el.className = 'pig' + (i === selected ? ' selected' : '');
       el.style.background = rgbCss(pig.rgb);
       el.title = pig.name;
-      el.addEventListener('click', () => { selected = i; renderPalette(); });
+      el.addEventListener('click', () => { selected = i; reload(); renderPalette(); });
       pal.appendChild(el);
     });
   }
@@ -1473,6 +1627,7 @@ footer a { color: var(--muted); }
     target = P.generateTarget(P.PAINT_PALETTE, Math.random);
     $('target').style.background = rgbCss(target.rgb);
     clearCanvas();
+    reload();
   }
 
   function tier(pct) {

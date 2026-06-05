@@ -38,10 +38,12 @@ test('build produces a self-contained paint.html', () => {
   assert.ok(!html.includes('//MIXBOX'), 'MIXBOX placeholder not replaced');
   assert.ok(!html.includes('//ENGINE'), 'ENGINE placeholder not replaced');
   assert.ok(!html.includes('//PAINT-ENGINE'), 'PAINT-ENGINE placeholder not replaced');
+  assert.ok(!html.includes('//BRUSH'), 'BRUSH placeholder not replaced');
   assert.ok(!html.includes('//PAINT-UI'), 'PAINT-UI placeholder not replaced');
 
   assert.ok(html.includes('MIXBOX 2.0'), 'Mixbox not inlined');
   assert.ok(html.includes('CordlePaint'), 'paint engine not inlined');
+  assert.ok(html.includes('CordleBrush'), 'brush module not inlined');
   assert.ok(html.includes('paint-canvas'), 'canvas markup not present');
 
   assert.ok(!/<script[^>]*\ssrc=/.test(html), 'unexpected external script src');
