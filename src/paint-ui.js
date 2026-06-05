@@ -2,6 +2,7 @@
   'use strict';
   const P = window.CordlePaint;
   const E = window.CordleEngine;
+  const Bsh = window.CordleBrush;
 
   const W = 420, H = 420;
   const SPOT_X = 210, SPOT_Y = 210, SAMPLE_RADIUS = 6;
@@ -16,11 +17,14 @@
 
   const latents = P.pigmentLatents(P.PAINT_PALETTE);
   const buffer = P.createBuffer(W, H);
+  const brush = Bsh.createBrush();
 
   let target = null;
   let selected = 0;
   let painting = false;
   let last = null;
+  let strokeSeed = 1;
+  let bristles = Bsh.bristleOffsets(16, strokeSeed, undefined);
 
   function fillWhite() {
     for (let i = 0; i < img.data.length; i += 4) {
@@ -58,43 +62,62 @@
     };
   }
 
-  function brush() {
-    return { radius: +$('size').value, flow: (+$('flow').value) / 100 };
+  function controls() {
+    return {
+      radius: +$('size').value,
+      flow: (+$('flow').value) / 100,
+      wetness: (+$('wet').value) / 100,
+    };
   }
 
-  function stroke(x, y) {
-    const { radius, flow } = brush();
-    P.addDab(buffer, x, y, radius, flow, latents[selected]);
+  function updateBrushIndicator() {
+    const c = Bsh.brushColor(brush);
+    $('brush-swatch').style.background = c ? rgbCss(c) : 'transparent';
+    $('brush-load').style.width = (Bsh.brushLoad(brush) * 100) + '%';
+  }
+
+  function dab(x, y, speed) {
+    const { radius, flow, wetness } = controls();
+    Bsh.applyBrushDab(buffer, brush, x, y, { radius, flow, wetness, bristles, speed });
     renderRegion(x, y, radius);
   }
 
-  function strokeLine(a, b) {
-    const { radius } = brush();
+  function dabLine(a, b) {
+    const { radius } = controls();
     const dx = b.x - a.x, dy = b.y - a.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    const steps = Math.max(1, Math.floor(dist / (radius / 2)));
+    const steps = Math.max(1, Math.floor(dist / Math.max(1, radius * 0.4)));
     for (let s = 1; s <= steps; s++) {
-      stroke(a.x + (dx * s) / steps, a.y + (dy * s) / steps);
+      dab(a.x + (dx * s) / steps, a.y + (dy * s) / steps, dist);
     }
+    updateBrushIndicator();
   }
 
   canvas.addEventListener('pointerdown', (ev) => {
     canvas.setPointerCapture(ev.pointerId);
     painting = true;
+    strokeSeed += 1;
+    bristles = Bsh.bristleOffsets(+$('size').value, strokeSeed, undefined);
     const pt = toLogical(ev);
     last = pt;
-    stroke(pt.x, pt.y);
+    dab(pt.x, pt.y, 0);
+    updateBrushIndicator();
   });
   canvas.addEventListener('pointermove', (ev) => {
     if (!painting) return;
     const pt = toLogical(ev);
-    strokeLine(last, pt);
+    dabLine(last, pt);
     last = pt;
   });
   const endStroke = () => { painting = false; last = null; };
   canvas.addEventListener('pointerup', endStroke);
   canvas.addEventListener('pointercancel', endStroke);
   canvas.addEventListener('pointerleave', endStroke);
+
+  function reload() {
+    Bsh.loadBrush(brush, latents[selected]);
+    updateBrushIndicator();
+  }
 
   function renderPalette() {
     const pal = $('palette');
@@ -104,7 +127,7 @@
       el.className = 'pig' + (i === selected ? ' selected' : '');
       el.style.background = rgbCss(pig.rgb);
       el.title = pig.name;
-      el.addEventListener('click', () => { selected = i; renderPalette(); });
+      el.addEventListener('click', () => { selected = i; reload(); renderPalette(); });
       pal.appendChild(el);
     });
   }
@@ -120,6 +143,7 @@
     target = P.generateTarget(P.PAINT_PALETTE, Math.random);
     $('target').style.background = rgbCss(target.rgb);
     clearCanvas();
+    reload();
   }
 
   function tier(pct) {
