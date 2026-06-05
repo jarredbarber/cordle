@@ -57,8 +57,52 @@
     return 1 / (1 + (speed || 0) * 0.05);
   }
 
+  function applyBrushDab(buf, brush, cx, cy, opts) {
+    const radius = opts.radius;
+    const flow = opts.flow;
+    const wetness = opts.wetness != null ? opts.wetness : 0;
+    const bristles = opts.bristles || bristleOffsets(radius, 1, BRISTLE_COUNT);
+    const taper = speedTaper(opts.speed || 0);
+    const subR = Math.max(1, radius * BRISTLE_SUB);
+
+    // Pickup once: tint the carried color toward the wet canvas under the footprint.
+    const s = paint.sampleLatent(buf, cx, cy, radius);
+    if (s.weight > 0) {
+      const k = wetness * PICKUP_K;
+      if (k > 0) {
+        if (brush.weight > DRY) {
+          for (let i = 0; i < L; i++) {
+            const carried = brush.accum[i] / brush.weight;
+            brush.accum[i] = ((1 - k) * carried + k * s.z[i]) * brush.weight;
+          }
+        } else {
+          const gain = k * 0.5;
+          for (let i = 0; i < L; i++) brush.accum[i] += gain * s.z[i];
+          brush.weight += gain;
+          if (!brush.capacity) brush.capacity = DEFAULT_CAPACITY;
+        }
+      }
+    }
+
+    // Deposit per bristle, scaled by remaining load; then deplete.
+    for (const b of bristles) {
+      if (brush.weight <= DRY) break;
+      const bx = cx + b.dx, by = cy + b.dy;
+      const dep = flow * b.strength * taper * DEPOSIT_K * brushLoad(brush);
+      if (dep <= 0) continue;
+      const carried = new Array(L);
+      for (let i = 0; i < L; i++) carried[i] = brush.accum[i] / brush.weight;
+      paint.addDab(buf, bx, by, subR, dep, carried);
+      const before = brush.weight;
+      brush.weight = Math.max(0, brush.weight - dep * CONSUME_K);
+      const ratio = before > 0 ? brush.weight / before : 0;
+      for (let i = 0; i < L; i++) brush.accum[i] *= ratio;
+    }
+  }
+
   return {
     L, BRISTLE_COUNT, DEFAULT_CAPACITY,
     createBrush, loadBrush, brushColor, brushLoad, bristleOffsets, speedTaper,
+    applyBrushDab,
   };
 }));
